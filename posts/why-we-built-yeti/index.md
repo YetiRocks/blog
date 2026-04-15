@@ -1,10 +1,38 @@
 ---
 title: Why We Built Yeti
 description: One binary, zero network hops, 100K req/s. The story behind a Rust application platform that embeds everything.
-date: 2026-04-16
-author: Yeti Team
+date: 2026-05-01
+author: Jaxon Repp
 category: Company
 readingTime: 4 min read
+linkedin_post: |
+  Every application platform makes the same promise: fast, easy, scalable.
+
+  Then you look under the hood. A Node.js process. A separate database. A message broker. A cache layer. Six network hops between your user and their data.
+
+  For most apps, this is fine.
+
+  For real-time dashboards at 10K concurrent connections, AI inference pipelines, or high-frequency data collection — the layers ARE the bottleneck.
+
+  So we built Yeti: a single Rust binary that embeds everything. HTTP server, RocksDB storage, real-time streaming, vector search, ML inference, authentication — all in one process. No network hops between your code and your data.
+
+  The result:
+  → 100K+ req/s on a single node
+  → Sub-millisecond p50 latency
+  → Cold start under 10 seconds
+  → No Docker, no Kubernetes, no infrastructure to manage
+
+  You define your app in a GraphQL schema. Yeti generates REST, GraphQL, SSE, WebSocket, MQTT, and MCP endpoints automatically. Add @indexed for search, @vector for embeddings, @audit for tracking. Zero application code needed.
+
+  We're launching today. The full story of why we built it — and what it can do — is on the blog.
+
+  #rust #distributedsystems #performance #startup #ai
+linkedin_comment: |
+  Full article: https://yetirocks.com/www/blog/why-we-built-yeti
+
+  If you're building something where latency matters — real-time streaming, AI pipelines, edge computing — I'd love to show you what Yeti can do.
+
+  → yetirocks.com
 ---
 
 Every application platform makes the same promise: fast, easy, scalable. But when you look under the hood, you find a Node.js process, a separate database, a message broker, a cache layer, and a deployment pipeline that takes an afternoon to configure. We asked: what if the platform itself was the performance?
@@ -23,19 +51,20 @@ The result: 100K+ requests per second on a single node. Sub-millisecond p50 late
 
 ## Schema-First, Not Code-First
 
-You define your data model in a GraphQL schema file. Yeti reads it and generates REST, GraphQL, SSE, WebSocket, MQTT, and MCP endpoints automatically. Add `@indexed` to a field and it builds a secondary index. Add `@vector` and it generates embeddings with a local ML model. Add `@audit` and every mutation is tracked.
+You define your data model in a GraphQL schema file. Yeti reads it and generates REST, GraphQL, SSE, WebSocket, MQTT, and MCP endpoints automatically. Add `@indexed` to a field and it builds a secondary index. Declare a `Vector` field with `@indexed(source: "...")` and Yeti auto-embeds the source fields using a local ONNX model and builds an HNSW index — no external embedding API, no vector database. Add `@audit` and every mutation is tracked.
 
 ```graphql
 type Product @table @export @audit {
   id: ID! @primaryKey
   name: String! @indexed
-  description: String @indexed(type: "HNSW", source: "description")
+  description: String
   price: Float @default(value: 0)
   status: String @default(value: "draft")
+  embedding: Vector @indexed(source: "name,description")
 }
 ```
 
-That schema gives you a full CRUD API, vector search, audit trail, and default values — with zero application code.
+That schema gives you a full CRUD API, vector search with auto-generated embeddings, audit trail, and default values — with zero application code.
 
 ## Why Rust?
 

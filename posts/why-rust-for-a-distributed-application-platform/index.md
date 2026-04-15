@@ -1,7 +1,7 @@
 ---
 title: Why Rust for a Distributed Application Platform
 description: Garbage collection pauses, runtime overhead, and single-threaded bottlenecks. Here's why we chose Rust to build a platform where latency is bounded by physics.
-date: 2026-05-01
+date: 2026-05-02
 author: Jaxon Repp
 category: Engineering
 readingTime: 7 min read
@@ -73,19 +73,20 @@ Building this taught us a few things worth sharing:
 
 **RocksDB over LMDB was not obvious.** LMDB is fast, simple, and memory-mapped. It's the popular choice. But RocksDB gives us column families (per-app database isolation), TTL-based expiration, and better write amplification characteristics for our workload. The tradeoff is complexity — RocksDB has hundreds of tuning knobs. We pre-configure sane defaults and expose the ones that matter.
 
-**Schema-first beats code-first for platforms.** Yeti applications are defined by GraphQL schemas with custom directives. `@table` creates a RocksDB-backed table. `@export` generates REST, SSE, MQTT, and MCP endpoints. `@indexed` builds secondary indexes. `@indexed(type: "HNSW", source: "field")` auto-embeds a field for vector search. The schema is the single source of truth — the platform generates everything else.
+**Schema-first beats code-first for platforms.** Yeti applications are defined by GraphQL schemas with custom directives. `@table` creates a RocksDB-backed table. `@export` generates REST, SSE, MQTT, and MCP endpoints. `@indexed` builds secondary indexes. `Vector` is a first-class type — declare a `Vector` field with `@indexed(source: "...")` and Yeti auto-embeds the source fields using a local ONNX model and builds an HNSW index. No external embedding API. The schema is the single source of truth — the platform generates everything else.
 
 ```graphql
 type Product @table @export {
   id: ID! @primaryKey
   name: String! @indexed
-  description: String @indexed(type: "HNSW", source: "description")
+  description: String
   price: Float @default(value: 0)
   createdAt: DateTime @createdTime
+  embedding: Vector @indexed(source: "name,description")
 }
 ```
 
-That schema gives you a full CRUD API, vector search, timestamps, and default values — with zero application code.
+That schema gives you a full CRUD API, vector search with auto-generated embeddings, timestamps, and default values — with zero application code.
 
 **Compile times are the tax you pay.** First plugin compilation takes about 2 minutes. Cached restarts take 10 seconds. A full `cargo build` of the platform takes longer than we'd like. We mitigate this with a shared compilation cache across all plugins — they share a `target/` directory so dependencies compile once.
 
